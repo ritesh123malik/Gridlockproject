@@ -1,0 +1,22 @@
+corridor,total_events,obstruction_events,pct_high_priority,pct_road_closure,impact_score
+Mysore Road,743,632,99.7,11.0,39.5
+Bellary Road 1,610,505,100.0,5.4,35.4
+Tumkur Road,458,417,99.1,2.6,31.6
+Bellary Road 2,379,293,100.0,3.2,29.1
+Hosur Road,298,189,100.0,5.7,26.8
+ORR North 1,275,189,100.0,8.0,26.7
+Old Madras Road,263,197,100.0,4.6,26.3
+Magadi Road,245,201,100.0,4.1,26.0
+ORR North 2,235,208,100.0,4.3,26.0
+ORR East 1,244,166,100.0,7.4,25.9
+West of Chord Road,174,126,100.0,6.3,24.3
+Bannerghata Road,209,101,100.0,3.3,24.1
+ORR West 1,168,122,100.0,3.0,23.8
+ORR East 2,187,66,100.0,1.6,23.2
+CBD 2,104,64,100.0,6.7,22.5
+Varthur Road,77,54,100.0,11.7,22.5
+Hennur Main Road,96,70,100.0,6.2,22.4
+Old Airport Road,76,53,100.0,7.9,22.0
+Airport New South Road,67,34,100.0,10.4,21.9
+IRR(Thanisandra road),95,30,100.0,6.3,21.9
+CBD 1,26,12,100.0,11.5,21.2
