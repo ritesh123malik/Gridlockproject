@@ -104,6 +104,94 @@ def run_tests():
     assert alert["sms_advisory"].startswith("TLENS ALERT:"), "SMS text copy must follow format"
     print("   ✅ Citizen Alerts OK!")
 
+    print("🚦 [10/12] Testing Advanced Core Modules (Camera, Reports, Routes, Chat)...")
+    from modules.multi_camera import MultiCameraManager
+    from modules.report_generator import ReportGenerator
+    from modules.route_optimizer import RouteOptimizer
+    from modules.chat_assistant import TrafficChatAssistant
+    
+    # 1. Multi-camera
+    mc = MultiCameraManager()
+    dets = mc.get_all_detections()
+    assert "Cam_1" in dets and "Cam_2" in dets and "Cam_3" in dets
+    assert len(dets["Cam_1"]["detections"]) > 0
+    
+    # 2. Reports
+    f_mock = {"expected_delay": 25.0, "congestion_risk": 75.0, "confidence": 92.0, "vehicles_generated": 1200, "weather": "Sunny", "lifecycle": "During-event", "economics": {"affected_vehicles": 3000, "fuel_wasted_liters": 250.0, "economic_loss_lakhs": 3.50}}
+    cmd_mock = {"event_type": "Concert", "location_corridor": "Bellary Road 1", "crowd_size": 15000, "officers_total": 45, "diversions_count": 1, "signals_wave_adjust": 10, "directives": {"patrols": ["Patrol 1", "Patrol 2"]}}
+    alloc_mock = {"Bellary Road 1": 15, "ORR East 1": 10}
+    
+    csv_str = ReportGenerator.generate_incident_csv(f_mock, cmd_mock, alloc_mock)
+    assert "Expected Delay" in csv_str and "Concert" in csv_str
+    
+    json_str = ReportGenerator.generate_incident_json(f_mock, cmd_mock, alloc_mock)
+    assert '"expected_delay_minutes": 25.0' in json_str
+    
+    md_str = ReportGenerator.generate_incident_markdown(f_mock, cmd_mock, alloc_mock)
+    assert "# TRAFFICLENS" in md_str
+    
+    # 3. Route Optimizer
+    ro = RouteOptimizer(routing)
+    r_normal = ro.get_optimal_route("Tumkur Road", "Mysore Road")
+    assert r_normal["status"] == "success"
+    r_avoid = ro.get_optimal_route("Tumkur Road", "Mysore Road", avoid_corridors=["West of Chord Road"])
+    assert r_avoid["status"] == "success"
+    
+    # 4. Chat Assistant
+    chat = TrafficChatAssistant(f_mock, {"route_a": {"nodes": ["Node1", "Node2"], "distance_km": 5.0, "travel_time_min": 10.0}}, cmd_mock)
+    ans_delay = chat.respond("What is the delay?")
+    assert "25.0 minutes" in ans_delay
+    ans_route = chat.respond("Can you give me detours?")
+    assert "Node1 ➔ Node2" in ans_route
+    print("   ✅ Core Modules OK!")
+
+    print("🚦 [11/12] Testing Social Sentiment & ROI Cost-Benefit Analysis...")
+    from modules.sentiment import SentimentAnalyzer
+    from modules.cost_benefit import CostBenefitAnalyzer
+    
+    # 1. Sentiment
+    sa = SentimentAnalyzer()
+    s_sunny = sa.analyze("Concert", 10000, "Sunny")
+    s_rain = sa.analyze("Concert", 10000, "Heavy Rain")
+    assert s_sunny["sentiment_score"] > s_rain["sentiment_score"], "Rain must penalize sentiment score"
+    
+    # 2. ROI
+    roi = CostBenefitAnalyzer.compute_roi(2.5, 20.0) 
+    assert roi == 550.0, f"Expected 550.0%, got {roi}"
+    
+    proj = CostBenefitAnalyzer.get_savings_projections(2.5, 20.0)
+    assert proj["payback_months"] == 1.8, f"Expected 1.8, got {proj['payback_months']}"
+    print("   ✅ Sentiment & Cost-Benefit OK!")
+
+    print("🚦 [12/12] Testing Model Auto-Retraining & Reinforcement Learning Signal choice...")
+    from modules.model_retrainer import ModelRetrainer
+    from modules.signal_controller import AdaptiveSignalController
+    from modules.city_correlator import CityCorrelator
+    import pandas as pd
+    
+    # 1. Retrainer
+    fb_df = pd.DataFrame([{"location": "ORR East 1", "event_type": "Concert", "crowd_size": 1000, "actual_delay": 20.0, "actual_risk": 50.0}] * 3)
+    retrainer = ModelRetrainer(forecaster.ml_predictor, threshold=5)
+    assert not retrainer.should_retrain(fb_df)
+    fb_df_long = pd.DataFrame([{"location": "ORR East 1", "event_type": "Concert", "crowd_size": 1000, "actual_delay": 20.0, "actual_risk": 50.0}] * 6)
+    assert retrainer.should_retrain(fb_df_long)
+    
+    # Verify retraining execution
+    retrained = retrainer.retrain()
+    assert retrained is True
+    
+    # 2. Signal Controller
+    sc = AdaptiveSignalController()
+    action = sc.get_action("HIGH_CONGESTION")
+    assert action in [0, 1, 2]
+    
+    # 3. City Correlator
+    cc = CityCorrelator()
+    corr_results = cc.correlate("Concert")
+    assert len(corr_results) > 0
+    assert any(c["city"] == "London" for c in corr_results)
+    print("   ✅ Retraining, RL & City Correlator OK!")
+
     print("\n🎉 ALL EXTENDED SYSTEM TESTS PASSED SUCCESSFULLY! 100% CORRECT.")
 
 if __name__ == "__main__":

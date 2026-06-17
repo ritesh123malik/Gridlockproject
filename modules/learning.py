@@ -76,3 +76,19 @@ class PostEventLearningSystem:
         """Resets the learning log to seed data."""
         df = pd.DataFrame(SEED_FEEDBACK)
         df.to_csv(self.filepath, index=False)
+
+    def get_feedback_count(self) -> int:
+        """Returns the total number of feedback records stored."""
+        df = self.get_history()
+        return len(df)
+
+    def trigger_retraining(self, forecaster, threshold: int = 5) -> bool:
+        """
+        Creates a ModelRetrainer, monitors feedback count, and retrains if threshold is met.
+        """
+        from modules.model_retrainer import ModelRetrainer
+        retrainer = ModelRetrainer(forecaster.ml_predictor, threshold=threshold)
+        df = self.get_history()
+        if retrainer.should_retrain(df):
+            return retrainer.retrain()
+        return False

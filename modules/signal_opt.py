@@ -24,17 +24,26 @@ class AdaptiveSignalOptimizer:
             "West of Chord Road": "Rajajinagar 1st Block Cross",
             "Old Airport Road": "HAL Old Airport Road Circle"
         }
+        from modules.signal_controller import AdaptiveSignalController
+        self.rl_controller = AdaptiveSignalController()
 
     def optimize_signal_timings(self, location_corridor: str, affected_corridors: list[str], 
-                                base_delay_mins: float) -> list[dict]:
+                                 base_delay_mins: float) -> list[dict]:
         """
         Calculates signal offsets:
           - Congestion Source: positive offset (+Green) to FLUSH traffic.
           - Inbound feeders: negative offset (-Green) to GATE/THROTTLE incoming flow.
           - Detour/Alternative pathways: positive offset (+Green) to clear detours.
+        Incorporates Q-learning actions from reinforcement learning controller.
         """
         plan = []
         
+        # Determine traffic state for RL model
+        state = "HIGH_CONGESTION" if base_delay_mins > 25.0 else ("MODERATE_CONGESTION" if base_delay_mins > 10.0 else "LOW_CONGESTION")
+        rl_action = self.rl_controller.get_action(state)
+        from modules.signal_controller import SIGNAL_ACTIONS
+        rl_desc = SIGNAL_ACTIONS.get(rl_action, "Maintain Phase (0s)")
+
         # 1. Congestion source junction
         source_junction = self.junction_map.get(location_corridor, f"{location_corridor} Intersection")
         flush_offset = min(30, int(base_delay_mins * 0.6 + 10))
@@ -43,8 +52,9 @@ class AdaptiveSignalOptimizer:
             "corridor": location_corridor,
             "type": "Exit Flush",
             "offset_seconds": flush_offset,
-            "recommended_action": f"Inject **+{flush_offset}s GREEN wave** on main exit lanes to flush stationary queues.",
-            "current_cycle_sec": 120
+            "recommended_action": f"Inject **+{flush_offset}s GREEN wave** on main exit lanes to flush stationary queues. [RL Suggests: {rl_desc}]",
+            "current_cycle_sec": 120,
+            "rl_action_desc": rl_desc
         })
 
         # 2. Inbound feeder junctions (first 2 affected neighbors - throttle them)
@@ -57,8 +67,9 @@ class AdaptiveSignalOptimizer:
                 "corridor": f,
                 "type": "Entry Gating",
                 "offset_seconds": gate_offset,
-                "recommended_action": f"Apply **{gate_offset}s GREEN reduction** on lanes heading towards {location_corridor} to throttle volume.",
-                "current_cycle_sec": 120
+                "recommended_action": f"Apply **{gate_offset}s GREEN reduction** on lanes heading towards {location_corridor} to throttle volume. [RL Suggests: {rl_desc}]",
+                "current_cycle_sec": 120,
+                "rl_action_desc": rl_desc
             })
 
         # 3. Detour alternative paths (remaining affected neighbors - clear them)
@@ -71,8 +82,9 @@ class AdaptiveSignalOptimizer:
                 "corridor": d,
                 "type": "Detour Wave",
                 "offset_seconds": detour_offset,
-                "recommended_action": f"Synchronize **+{detour_offset}s green offsets** along detour routes to absorb bypass spillover.",
-                "current_cycle_sec": 120
+                "recommended_action": f"Synchronize **+{detour_offset}s green offsets** along detour routes to absorb bypass spillover. [RL Suggests: {rl_desc}]",
+                "current_cycle_sec": 120,
+                "rl_action_desc": rl_desc
             })
 
         return plan

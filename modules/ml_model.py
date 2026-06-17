@@ -111,6 +111,31 @@ class HybridMLPredictor:
             y_delay_list.append(delay)
             y_risk_list.append(risk)
 
+        # Merge actual logged post-event outcomes (feedback loop)
+        feedback_path = DATA_DIR / "post_event_feedback.csv"
+        if feedback_path.exists():
+            try:
+                feedback_df = pd.read_csv(feedback_path)
+                for _, row in feedback_df.iterrows():
+                    loc = row["location"]
+                    if pd.isna(loc) or loc not in self.corridor_idx:
+                        continue
+                    c_idx = self.corridor_idx[loc]
+                    evt_type = row["event_type"]
+                    evt_code = EVENT_MAPPINGS.get(evt_type, 1)
+                    crowd = row["crowd_size"]
+                    
+                    # Assume Sunny / During-event defaults for training vectors
+                    weather_code = 0.0
+                    lifecycle_code = 1.0
+                    prior = scores_lookup.get(loc, 0.0) / max_score
+                    
+                    X_list.append([float(c_idx), float(evt_code), float(crowd), float(weather_code), float(lifecycle_code), float(prior)])
+                    y_delay_list.append(row["actual_delay"])
+                    y_risk_list.append(row["actual_risk"])
+            except Exception as e:
+                print(f"Error loading feedback in ML Predictor training: {e}")
+
         if not X_list:
             # Fallback training set if empty
             self.X_train = np.zeros((5, 6))
@@ -179,3 +204,8 @@ class HybridMLPredictor:
             "risk": round(pred_risk, 1),
             "confidence": round(confidence, 1)
         }
+
+    def retrain(self):
+        """Public trigger to rebuild in-memory KNN tables."""
+        self._train_model()
+

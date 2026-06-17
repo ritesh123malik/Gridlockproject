@@ -48,3 +48,40 @@ class CitizenAlertGenerator:
             "transit_recommendation": transit_msg,
             "sms_advisory": advisory_sms
         }
+
+    def generate_social_post(self, platform: str, event_type: str, location: str,
+                              delay_min: float, detour_nodes: list,
+                              weather: str = "Sunny") -> str:
+        """
+        Generates platform-appropriate social media posts.
+        platform: "twitter" | "facebook"
+        """
+        detour_str = " → ".join(detour_nodes[:3]) if detour_nodes else "adjacent streets"
+        weather_tag = "#RainAlert" if "Rain" in weather else ("#FogAlert" if weather == "Fog" else "")
+
+        if platform.lower() == "twitter":
+            # Must be ≤ 280 characters
+            post = (
+                f"🚦 TRAFFIC ALERT: {event_type} at #{location.replace(' ', '')} "
+                f"causing ~{int(delay_min)} min delays. "
+                f"Use detour: {detour_str}. "
+                f"#BengaluruTraffic #TrafficLensAI {weather_tag}"
+            )
+            # Trim if over 280 chars
+            if len(post) > 280:
+                post = post[:277] + "..."
+            return post
+
+        else:  # Facebook — richer text
+            weather_line = f"\n🌧️ Weather: {weather} conditions are worsening road surfaces." if weather != "Sunny" else ""
+            post = (
+                f"🚨 TRAFFIC ADVISORY — {event_type.upper()}\n\n"
+                f"📍 Location: {location}\n"
+                f"⏱️ Expected Delay: ~{int(delay_min)} minutes\n"
+                f"🛣️ Recommended Detour: {detour_str}\n"
+                f"{weather_line}\n\n"
+                f"🚇 Take Namma Metro or BMTC to avoid the gridlock.\n"
+                f"Stay safe and share this with Bengaluru motorists! 🙏\n\n"
+                f"#BengaluruTraffic #TrafficLensAI #SmartCity #NammaMetro"
+            )
+            return post

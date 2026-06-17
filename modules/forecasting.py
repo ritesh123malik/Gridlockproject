@@ -68,6 +68,10 @@ class EventImpactForecaster:
         self.max_score = self.scores_df["impact_score"].max() if not self.scores_df.empty else 1.0
         self.ml_predictor = HybridMLPredictor()
 
+    def retrain_model(self):
+        """Triggers training updates inside the HybridMLPredictor."""
+        self.ml_predictor.retrain()
+
     def predict_impact(self, event_type: str, crowd_size: int, location_corridor: str, 
                        weather: str = "Sunny", lifecycle: str = "During-event", 
                        correction_factor: float = 0.0) -> dict:

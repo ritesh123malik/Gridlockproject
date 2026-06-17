@@ -29,10 +29,22 @@ class TrackedObject:
     last_seen: float
     plate: str = None
     misses: int = 0       # consecutive frames not matched
+    prev_centroid: tuple = None   # (cx, cy) from previous frame
+    speed_px_per_sec: float = 0.0 # estimated pixel speed
 
     @property
     def dwell_seconds(self) -> float:
         return self.last_seen - self.first_seen
+
+    @property
+    def centroid(self) -> tuple:
+        x1, y1, x2, y2 = self.bbox
+        return ((x1 + x2) / 2, (y1 + y2) / 2)
+
+    def speed_kmh(self, pixels_per_meter: float = 8.0) -> float:
+        """Converts pixel-displacement speed to km/h."""
+        meters_per_sec = self.speed_px_per_sec / max(pixels_per_meter, 0.01)
+        return round(meters_per_sec * 3.6, 1)
 
 
 def _iou(box_a, box_b) -> float:
@@ -91,12 +103,24 @@ class DwellTimeTracker:
         for tid, di in matches:
             det = detections[di]
             t = self._tracks[tid]
+            old_centroid = t.centroid
+            t.prev_centroid = old_centroid
             t.bbox = det["bbox"]
             t.vehicle_type = det.get("vehicle_type", t.vehicle_type)
+            dt = now - t.last_seen
             t.last_seen = now
             t.misses = 0
             if det.get("plate"):
                 t.plate = det["plate"]
+            # Compute pixel displacement speed
+            new_cx, new_cy = t.centroid
+            if t.prev_centroid and dt > 0:
+                dx = new_cx - t.prev_centroid[0]
+                dy = new_cy - t.prev_centroid[1]
+                displacement = (dx**2 + dy**2) ** 0.5
+                t.speed_px_per_sec = displacement / dt
+            else:
+                t.speed_px_per_sec = 0.0
 
         # New tracks for unmatched detections
         for di in unmatched_dets:
@@ -126,3 +150,10 @@ class DwellTimeTracker:
     def active_violations(self, min_dwell_seconds: float = 120.0):
         """Tracks stationary longer than the configured threshold."""
         return [t for t in self._tracks.values() if t.dwell_seconds >= min_dwell_seconds]
+
+    def average_speed_kmh(self, pixels_per_meter: float = 8.0) -> float:
+        """Computes mean speed of all moving vehicles (speed > 0) in km/h."""
+        moving = [t for t in self._tracks.values() if t.speed_px_per_sec > 0.5]
+        if not moving:
+            return 0.0
+        return round(sum(t.speed_kmh(pixels_per_meter) for t in moving) / len(moving), 1)

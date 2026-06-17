@@ -1,0 +1,4 @@
+timestamp,corridor,incident_type,severity,description,lat,lon
+2026-06-18 03:51,CBD 1,Congestion,High,Test blockage,12.9762,77.6033
+2026-06-18 04:04,Airport New South Road,Road Damage,High,,13.068,77.598
+2026-06-18 04:08,CBD 1,Congestion,High,Test,12.9762,77.6033

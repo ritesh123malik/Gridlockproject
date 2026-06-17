@@ -163,3 +163,30 @@ class ReroutingEngine:
             "route_b": format_path(path_b, speed_kmh=22), # slightly slower
             "emergency_route": format_path(path_e, speed_kmh=45) # fast emergency wave speed
         }
+
+    def get_route_edges(self, path: list) -> list[tuple]:
+        """
+        Returns the list of edges (u, v) for a given path sequence of nodes.
+        """
+        if not path or len(path) < 2:
+            return []
+        return [(path[i], path[i+1]) for i in range(len(path) - 1)]
+
+    def apply_live_delay_weights(self, corridor_delays: dict):
+        """
+        Adjusts the edge weights in the graph dynamically based on live delays.
+        corridor_delays: dict of {corridor_name: delay_minutes}
+        """
+        # Reset edge weights first
+        for u, v, d in self.base_graph.edges(data=True):
+            lat1, lon1 = self.base_graph.nodes[u]["lat"], self.base_graph.nodes[u]["lon"]
+            lat2, lon2 = self.base_graph.nodes[v]["lat"], self.base_graph.nodes[v]["lon"]
+            dist = _haversine_km(lat1, lon1, lat2, lon2)
+            d["weight"] = dist
+            
+        # Apply delays
+        for corridor, delay in corridor_delays.items():
+            if corridor in self.base_graph:
+                penalty_factor = 1.0 + (delay / 10.0) # E.g. 10m delay doubles weight
+                for neighbor in list(self.base_graph.neighbors(corridor)):
+                    self.base_graph[corridor][neighbor]["weight"] *= penalty_factor
